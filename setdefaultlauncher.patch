@@ -1,0 +1,84 @@
+diff --git a/core/java/com/android/internal/app/ResolverActivity.java b/core/java/com/android/internal/app/ResolverActivity.java
+index 0010073..5730eaa 100644
+--- a/core/java/com/android/internal/app/ResolverActivity.java
++++ b/core/java/com/android/internal/app/ResolverActivity.java
+@@ -69,6 +69,7 @@ import android.widget.ImageView;
+ import android.widget.ListView;
+ import android.widget.TextView;
+ import android.widget.Toast;
++import android.os.SystemProperties;
+ 
+ import com.android.internal.logging.MetricsLogger;
+ import com.android.internal.logging.MetricsProto;
+@@ -83,6 +84,7 @@ import java.util.List;
+ import java.util.Objects;
+ import java.util.Set;
+ 
++
+ import static android.content.Intent.FLAG_ACTIVITY_NEW_TASK;
+ import static android.view.WindowManager.LayoutParams.FLAG_LAYOUT_INSET_DECOR;
+ import static android.view.WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN;
+@@ -117,6 +119,32 @@ public class ResolverActivity extends Activity {
+     protected ResolverDrawerLayout mResolverDrawerLayout;
+ 
+     private boolean mRegistered;
++
++    private static final String DEFAULT_HOME = "persist.sys.default.home";
++    private void setupDefaultLauncher() {
++        String first = "";
++        try{
++            first =  SystemProperties.get(DEFAULT_HOME);
++        }catch(Exception e){
++            Log.w(TAG,"exception error get DEFAULT_HOME");
++        }
++        if (!TextUtils.isEmpty(first)) {
++            return;
++        }
++        int position = mAdapter.getDefaultHomePosition("com.droidlogic.mboxsettings");
++        if (position == -1) {
++            if (DEBUG)
++            Log.w(TAG,"not find default Home");
++            return;
++        }
++        try{
++            SystemProperties.set(DEFAULT_HOME,DEFAULT_HOME);
++        }catch(Exception e){
++            Log.w(TAG,"exception error set DEFAULT_HOME");
++        }
++        startSelected(position, true, true);
++        dismiss();
++    }
+     private final PackageMonitor mPackageMonitor = new PackageMonitor() {
+         @Override public void onSomePackagesChanged() {
+             mAdapter.handlePackagesChanged();
+@@ -929,7 +957,10 @@ public class ResolverActivity extends Activity {
+             layoutId = getLayoutResource();
+         }
+         mAlwaysUseOption = alwaysUseOption;
+-
++	if (SystemProperties.getBoolean("ro.is.hke360.project", false))
++	{
++        setupDefaultLauncher();
++	}
+         int count = mAdapter.getUnfilteredCount();
+         if (count == 1 && mAdapter.getOtherProfile() == null) {
+             // Only one target, so we're a candidate to auto-launch!
+@@ -1252,7 +1283,17 @@ public class ResolverActivity extends Activity {
+ 
+         private int mLastChosenPosition = -1;
+         private boolean mFilterLastUsed;
+-
++	public int getDefaultHomePosition(String packageName){
++            for (int i = 0; i < mDisplayList.size(); i++) {
++                ResolveInfo info = mDisplayList.get(i).getResolveInfo();
++                if (DEBUG)
++                Log.w(TAG,"getDefaultHomePosition " + info.activityInfo.packageName);
++                if (info.activityInfo.packageName.equals(packageName)) {
++                   return i;
++                }
++            }
++            return -1;
++        }
+         public ResolveListAdapter(Context context, List<Intent> payloadIntents,
+                 Intent[] initialIntents, List<ResolveInfo> rList, int launchedFromUid,
+                 boolean filterLastUsed) {
