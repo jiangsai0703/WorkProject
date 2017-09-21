@@ -1,0 +1,206 @@
+diff --git a/arch/arm64/boot/dts/amlogic/gxl_p241_1g.dts b/arch/arm64/boot/dts/amlogic/gxl_p241_1g.dts
+index ea418a7..7f9b9d6 100644
+--- a/arch/arm64/boot/dts/amlogic/gxl_p241_1g.dts
++++ b/arch/arm64/boot/dts/amlogic/gxl_p241_1g.dts
+@@ -962,7 +962,7 @@
+ 				"Ext Spk","LOUTL",
+ 				"Ext Spk","LOUTR";
+ 
+-		mute_gpio-gpios = <&gpio GPIOH_5 0>;
++		mute_gpio-gpios = <&gpio GPIOH_5 1>;
+ 		mute_inv;
+ 		sleep_time = <300>;
+ 		hp_disable;
+diff --git a/arch/arm64/boot/dts/amlogic/gxl_p241_1g_buildroot.dts b/arch/arm64/boot/dts/amlogic/gxl_p241_1g_buildroot.dts
+index 1ef54a9..22a8289 100644
+--- a/arch/arm64/boot/dts/amlogic/gxl_p241_1g_buildroot.dts
++++ b/arch/arm64/boot/dts/amlogic/gxl_p241_1g_buildroot.dts
+@@ -963,13 +963,13 @@
+ 				"Ext Spk","LOUTL",
+ 				"Ext Spk","LOUTR";
+ 
+-		mute_gpio-gpios = <&gpio GPIOH_5 0>;
++	//	mute_gpio-gpios = <&gpio GPIOH_5 1>;
+ 		mute_inv;
+ 		sleep_time = <300>;
+ 		hp_disable;
+ 		hp_paraments = <800 300 0 5 1>;
+ 		pinctrl-names = "aml_snd_m8";
+-		pinctrl-0 = <&audio_pins>;
++		//pinctrl-0 = <&audio_pins>;
+ 		cpu_list = <&cpudai0 &cpudai1 &cpudai2>;
+ 		codec_list = <&codec0 &codec1 &codec2>;
+ 		plat_list = <&i2s_plat &i2s_plat &pcm_plat>;
+@@ -1133,11 +1133,11 @@
+ };
+ 
+ &pinmux {
+-	audio_pins:audio_pin{
+-		amlogic,setmask=<6 0x7800000>;
+-		amlogic,clrmask=<6 0x07e0000>;
+-		amlogic,pins = "GPIOH_6","GPIOH_7","GPIOH_8","GPIOH_9";
+-	};
++//	audio_pins:audio_pin{
++//		amlogic,setmask=<6 0x7800000>;
++//		amlogic,clrmask=<6 0x07e0000>;	
++//	        amlogic,pins = "GPIOH_6","GPIOH_7","GPIOH_8","GPIOH_9";
++//	       };
+ 
+ 	audio_spdif_pins:audio_pin1{
+ 		amlogic,setmask=<6 0x10000000>;		/*spdif_out*/
+diff --git a/arch/arm64/boot/dts/amlogic/mesongxl.dtsi b/arch/arm64/boot/dts/amlogic/mesongxl.dtsi
+index 02b5b65..7d51ec2 100644
+--- a/arch/arm64/boot/dts/amlogic/mesongxl.dtsi
++++ b/arch/arm64/boot/dts/amlogic/mesongxl.dtsi
+@@ -197,7 +197,7 @@
+ 	};
+ 	amlogic-jtag {
+ 		compatible = "amlogic, jtag";
+-		status = "okay";
++		status = "disable";
+ 		pinctrl-names = "jtag_apao_pins", "jtag_apee_pins";
+ 		pinctrl-0 = <&jtag_apao_pins>;
+ 		pinctrl-1 = <&jtag_apee_pins>;
+diff --git a/drivers/amlogic/display/osd/osd_fb.c b/drivers/amlogic/display/osd/osd_fb.c
+index 3c1f831..26fa760 100644
+--- a/drivers/amlogic/display/osd/osd_fb.c
++++ b/drivers/amlogic/display/osd/osd_fb.c
+@@ -55,7 +55,10 @@
+ #include "osd_log.h"
+ #include "osd_sync.h"
+ 
+-
++#include <linux/of_gpio.h>
++#include <linux/gpio.h>
++#include <linux/delay.h>
++#define OSD_DEV_NAME "osd_dev"
+ static __u32 var_screeninfo[5];
+ 
+ struct osd_info_s osd_info = {
+@@ -1333,6 +1336,13 @@ int osd_notify_callback(struct notifier_block *block, unsigned long cmd,
+ 	struct osd_fb_dev_s *fb_dev;
+ 	int  i, blank;
+ 	struct disp_rect_s *disp_rect;
++//SET GPIOH_7 1	
++	gpio_request(178, OSD_DEV_NAME);
++        gpio_direction_output(178 , 1);
++//SET GPIOH_5 0
++	mdelay(10);
++	gpio_request(176, OSD_DEV_NAME);
++	gpio_direction_output(176 , 0);
+ 
+ 	vinfo = get_current_vinfo();
+ 	if (!vinfo) {
+diff --git a/drivers/amlogic/display/osd/osd_hw.c b/drivers/amlogic/display/osd/osd_hw.c
+index 6e3e130..c8aeb94 100644
+--- a/drivers/amlogic/display/osd/osd_hw.c
++++ b/drivers/amlogic/display/osd/osd_hw.c
+@@ -63,6 +63,13 @@
+ #include "osd_hw.h"
+ #include "osd_hw_def.h"
+ 
++#include <linux/of_gpio.h>
++#include <linux/gpio.h>
++#include <linux/delay.h>
++#define OSD_HW_NAME "osd_hw"
++
++
++
+ #ifdef CONFIG_AML_VSYNC_FIQ_ENABLE
+ #define FIQ_VSYNC
+ #endif
+@@ -4050,6 +4057,12 @@ void osd_cursor_hw(u32 index, s16 x, s16 y, s16 xstart, s16 ystart, u32 osd_w,
+ 
+ void  osd_suspend_hw(void)
+ {
++//GPIOH_5 mute_gpio set 1 mute
++	gpio_request(176, OSD_HW_NAME);
++	gpio_direction_output(176 , 1);
++//GPIOH_7 set to 0, disable backlight
++	gpio_request(178, OSD_HW_NAME);
++        gpio_direction_output(178 , 0);	
+ 	osd_hw.reg_status_save = osd_reg_read(VPP_MISC) & OSD_RELATIVE_BITS;
+ 	osd_vpp_misc &= ~OSD_RELATIVE_BITS;
+ 	notify_to_amvideo();
+@@ -4069,6 +4082,14 @@ void osd_resume_hw(void)
+ 	osd_reg_set_mask(VPP_MISC, osd_hw.reg_status_save);
+ 	/* VSYNCOSD_SET_MPEG_REG_MASK(VPP_MISC, osd_hw.reg_status_save); */
+ 	osd_log_info("osd_resumed\n");
++//samjiang loged
++//SET GPIOH_7 1
++       gpio_request(178, OSD_HW_NAME);
++       gpio_direction_output(178 , 1);
++//GPIOH_5 0
++       mdelay(50);
++       gpio_request(176, OSD_HW_NAME);
++       gpio_direction_output(176 , 0);
+ 	return;
+ }
+ 
+diff --git a/drivers/amlogic/led/led_sys.c b/drivers/amlogic/led/led_sys.c
+old mode 100644
+new mode 100755
+index 9475ef4..3fd172c
+--- a/drivers/amlogic/led/led_sys.c
++++ b/drivers/amlogic/led/led_sys.c
+@@ -31,7 +31,7 @@
+ #include <linux/slab.h>
+ 
+ #include "led_sys.h"
+-
++#include <linux/delay.h>
+ 
+ #define AML_DEV_NAME		"sysled"
+ #define AML_LED_NAME		"led-sys"
+@@ -148,7 +148,8 @@ static int aml_sysled_probe(struct platform_device *pdev)
+ 
+ 	/* set led default on */
+ 	/*aml_sysled_output_setup(ldev, 1);*/
+-
++//	gpio_request(178, AML_DEV_NAME);
++//	gpio_direction_output(178 , 1);
+ 	pr_info("module probed ok\n");
+ 	return 0;
+ }
+@@ -183,6 +184,8 @@ static int aml_sysled_suspend(struct platform_device *pdev, pm_message_t state)
+ 	struct aml_sysled_dev *ldev = platform_get_drvdata(pdev);
+ 	/* set led off */
+ 	aml_sysled_output_setup(ldev, 0);
++//	gpio_request(178, AML_DEV_NAME);
++//	gpio_direction_output(178 , 0);
+ 	pr_info("module suspend ok\n");
+ 	return 0;
+ }
+@@ -192,6 +195,16 @@ static int aml_sysled_resume(struct platform_device *pdev)
+ 	struct aml_sysled_dev *ldev = platform_get_drvdata(pdev);
+ 	/* set led on */
+ 	aml_sysled_output_setup(ldev, 1);
++//	mdelay(50);
++	//SET GPIOH_7 1
++//	gpio_request(178, AML_DEV_NAME);
++//	gpio_direction_output(178 , 1);	
++	//GPIOH_5 0
++//	mdelay(200);	
++//        gpio_request(176, AML_DEV_NAME);
++//        gpio_direction_output(176 , 0);
++
++
+ 	pr_info("module resume ok\n");
+ 	return 0;
+ }
+diff --git a/sound/soc/aml/m8/aml_m8.c b/sound/soc/aml/m8/aml_m8.c
+index 5410dad..71080d1 100644
+--- a/sound/soc/aml/m8/aml_m8.c
++++ b/sound/soc/aml/m8/aml_m8.c
+@@ -572,8 +572,10 @@ static void aml_m8_pinmux_init(struct snd_soc_card *card)
+ 		if (p_aml_audio->sleep_time)
+ 			msleep(p_aml_audio->sleep_time);
+ 		val = p_aml_audio->mute_inv ?
+-			GPIOF_OUT_INIT_HIGH : GPIOF_OUT_INIT_LOW;
++			GPIOF_OUT_INIT_LOW :GPIOF_OUT_INIT_HIGH;
++//			GPIOF_OUT_INIT_HIGH : GPIOF_OUT_INIT_LOW;
+ 		gpiod_direction_output(p_aml_audio->mute_desc, val);
++		printk("aml_m8_pinmux_init  val is %d\n",val );
+ 	}
+ 
+ 	if (is_jtag_apao())
