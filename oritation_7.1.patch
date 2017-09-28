@@ -1,0 +1,285 @@
+diff --git a/frameworks/base/services/core/java/com/android/server/policy/PhoneWindowManager.java b/frameworks/base/services/core/java/com/android/server/policy/PhoneWindowManager.java
+index 23149fa..afb0f2f 100755
+--- a/frameworks/base/services/core/java/com/android/server/policy/PhoneWindowManager.java
++++ b/frameworks/base/services/core/java/com/android/server/policy/PhoneWindowManager.java
+@@ -160,7 +160,7 @@ import java.io.IOException;
+ import java.io.PrintWriter;
+ import java.util.HashSet;
+ import java.util.List;
+-
++import android.os.AsyncTask;
+ /**
+  * WindowManagerPolicy implementation for the Android phone UI.  This
+  * introduces a new method suffix, Lp, for an internal lock of the
+@@ -2115,10 +2115,11 @@ public class PhoneWindowManager implements WindowManagerPolicy {
+                 mUserRotation = userRotation;
+                 updateRotation = true;
+             }
+-            int userRotationMode = Settings.System.getIntForUser(resolver,
+-                    Settings.System.ACCELEROMETER_ROTATION, 0, UserHandle.USER_CURRENT) != 0 ?
+-                            WindowManagerPolicy.USER_ROTATION_FREE :
+-                                    WindowManagerPolicy.USER_ROTATION_LOCKED;
++//            int userRotationMode = Settings.System.getIntForUser(resolver,
++//                    Settings.System.ACCELEROMETER_ROTATION, 0, UserHandle.USER_CURRENT) != 0 ?
++//                            WindowManagerPolicy.USER_ROTATION_FREE :
++//                                    WindowManagerPolicy.USER_ROTATION_LOCKED;
++	    int userRotationMode = WindowManagerPolicy.USER_ROTATION_LOCKED;  //enable user mode
+             if (mUserRotationMode != userRotationMode) {
+                 mUserRotationMode = userRotationMode;
+                 updateRotation = true;
+@@ -3242,7 +3243,24 @@ public class PhoneWindowManager implements WindowManagerPolicy {
+                  mIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                  mContext.startActivity(mIntent);
+        }
+-
++       if (keyCode == KeyEvent.KEYCODE_F10){
++            if (down) {
++                AsyncTask.execute(new Runnable() {
++                    public void run() {
++                        int direction = Settings.System.getInt(mContext.getContentResolver(), Settings.System.USER_ROTATION, 0);
++                        if (direction == 0){
++                            Settings.System.putInt(mContext.getContentResolver(), Settings.System.USER_ROTATION, 1);
++                        }else if (direction == 1){
++                            Settings.System.putInt(mContext.getContentResolver(), Settings.System.USER_ROTATION, 2);
++                        }else if (direction == 2){
++                            Settings.System.putInt(mContext.getContentResolver(), Settings.System.USER_ROTATION, 3);
++                        }else if (direction == 3){
++                            Settings.System.putInt(mContext.getContentResolver(), Settings.System.USER_ROTATION, 0);
++                        }
++                    }
++                });
++           }
++       }
+         // If we think we might have a volume down & power key chord on the way
+         // but we're not sure, then tell the dispatcher to wait a little while and
+         // try again later before dispatching.
+@@ -6878,6 +6896,7 @@ public class PhoneWindowManager implements WindowManagerPolicy {
+                             ? "USER_ROTATION_LOCKED" : "")
+                         );
+         }
++/*
+         String rot = SystemProperties.get("persist.sys.app.rotation", "middle_port");
+         if (rot.equals("force_land"))
+               return mLandscapeRotation;
+@@ -6885,7 +6904,7 @@ public class PhoneWindowManager implements WindowManagerPolicy {
+         if (mForceDefaultOrientation && rot.equals("middle_port")) {
+             return Surface.ROTATION_0;
+         }
+-
++*/
+         synchronized (mLock) {
+             int sensorRotation = mOrientationListener.getProposedRotation(); // may be -1
+             if (sensorRotation < 0) {
+@@ -7040,7 +7059,7 @@ public class PhoneWindowManager implements WindowManagerPolicy {
+     public boolean rotationHasCompatibleMetricsLw(int orientation, int rotation) {
+         if (SystemProperties.get("persist.sys.app.rotation", "middle_port").equals("force_land"))
+             return true;
+-
++	orientation = -1;
+         switch (orientation) {
+             case ActivityInfo.SCREEN_ORIENTATION_PORTRAIT:
+             case ActivityInfo.SCREEN_ORIENTATION_REVERSE_PORTRAIT:
+diff --git a/hardware/amlogic/hwcomposer/hwc1.4/hwcomposer.cpp b/hardware/amlogic/hwcomposer/hwc1.4/hwcomposer.cpp
+index b2914da..97695de 100644
+--- a/hardware/amlogic/hwcomposer/hwc1.4/hwcomposer.cpp
++++ b/hardware/amlogic/hwcomposer/hwc1.4/hwcomposer.cpp
+@@ -102,6 +102,7 @@
+ #else
+ #define ENABLE_CURSOR_LAYER 1//cursor layer supported in hwc 1.4
+ #define CHK_SKIP_DISPLAY_FB0(dispIdx)   //nothing to do
++#undef ENABLE_CURSOR_LAYER
+ #endif
+ 
+ #define get_display_info(ctx,disp) \
+diff --git a/packages/apps/Settings/res/values-es/strings.xml b/packages/apps/Settings/res/values-es/strings.xml
+index 83986b5..f3516c1 100644
+--- a/packages/apps/Settings/res/values-es/strings.xml
++++ b/packages/apps/Settings/res/values-es/strings.xml
+@@ -2793,6 +2793,7 @@
+     <string name="imei_information_title" msgid="8499085421609752290">"Información del IMEI"</string>
+     <string name="imei_information_summary" msgid="2074095606556565233">"Información relacionada con el IMEI"</string>
+     <string name="slot_number" msgid="3762676044904653577">"(N.º <xliff:g id="SLOT_NUM">%1$d</xliff:g>)"</string>
++    <string name="screen_direction" msgid="3762676044904654477">"screen direction"</string>
+     <string name="launch_by_default" msgid="1840761193189009248">"Abrir de forma predeterminada"</string>
+     <string name="storage_summary_format" msgid="5419902362347539755">"<xliff:g id="SIZE">%1$s</xliff:g> usados en <xliff:g id="STORAGE_TYPE">%2$s</xliff:g>"</string>
+     <string name="app_launch_domain_links_title" msgid="1160925981363706090">"Enlaces de apertura"</string>
+diff --git a/packages/apps/Settings/res/values-zh-rCN/arrays.xml b/packages/apps/Settings/res/values-zh-rCN/arrays.xml
+index bcc93d6..81a2f2c 100644
+--- a/packages/apps/Settings/res/values-zh-rCN/arrays.xml
++++ b/packages/apps/Settings/res/values-zh-rCN/arrays.xml
+@@ -472,6 +472,18 @@
+     <item msgid="4608643045752965568">"粉红色"</item>
+     <item msgid="6131821495505931173">"红色"</item>
+   </string-array>
++ <string-array name="rotate_setting_entry">
++    <item >0度</item>
++    <item >90度</item>
++    <item >180度</item>
++    <item >270度</item>
++  </string-array>
++ <string-array name="rotate_setting_value">
++    <item >0</item>
++    <item >90</item>
++    <item >180</item>
++    <item >270</item>
++ </string-array>
+   <string-array name="automatic_storage_management_days">
+     <item msgid="687318592238852312">"超过 30 天"</item>
+     <item msgid="2900554746706302178">"超过 60 天"</item>
+diff --git a/packages/apps/Settings/res/values-zh-rCN/strings.xml b/packages/apps/Settings/res/values-zh-rCN/strings.xml
+index feae10b..516b785 100755
+--- a/packages/apps/Settings/res/values-zh-rCN/strings.xml
++++ b/packages/apps/Settings/res/values-zh-rCN/strings.xml
+@@ -2914,6 +2914,7 @@
+     <string name="imei_information_title" msgid="8499085421609752290">"IMEI 信息"</string>
+     <string name="imei_information_summary" msgid="2074095606556565233">"IMEI相关信息"</string>
+     <string name="slot_number" msgid="3762676044904653577">"（插槽<xliff:g id="SLOT_NUM">%1$d</xliff:g>）"</string>
++    <string name="screen_direction" msgid="3762676044904654477">"屏幕旋转"</string>
+     <string name="launch_by_default" msgid="1840761193189009248">"默认打开"</string>
+     <string name="storage_summary_format" msgid="5419902362347539755">"<xliff:g id="STORAGE_TYPE">%2$s</xliff:g>已使用 <xliff:g id="SIZE">%1$s</xliff:g>"</string>
+     <string name="app_launch_domain_links_title" msgid="1160925981363706090">"打开链接"</string>
+diff --git a/packages/apps/Settings/res/values/arrays.xml b/packages/apps/Settings/res/values/arrays.xml
+index 6827e5b..4c55177 100644
+--- a/packages/apps/Settings/res/values/arrays.xml
++++ b/packages/apps/Settings/res/values/arrays.xml
+@@ -1031,6 +1031,19 @@
+         <item>Red</item>
+     </string-array>
+ 
++    <string-array name="rotate_setting_entry">
++	<item >0 degree</item>
++	<item >90 degree</item>
++	<item >180 degree</item>
++	<item >270 degree</item>
++    </string-array>
++    <string-array name="rotate_setting_value">
++	<item >0</item>
++	<item >90</item>
++	<item >180</item>
++	<item >270</item>
++    </string-array>
++
+     <!-- Automatic storage management settings. The amount of days for the automatic storage manager
+          to retain. These are shown in a list dialog. [CHAR LIMIT=70] -->
+     <string-array name="automatic_storage_management_days">
+diff --git a/packages/apps/Settings/res/values/strings.xml b/packages/apps/Settings/res/values/strings.xml
+index 89756e8..31f27ab 100644
+--- a/packages/apps/Settings/res/values/strings.xml
++++ b/packages/apps/Settings/res/values/strings.xml
+@@ -6940,7 +6940,7 @@
+    <string name="imei_information_title">IMEI information</string>
+    <string name="imei_information_summary">IMEI relative information</string>
+    <string name="slot_number">(Slot<xliff:g id="slot_num">%1$d</xliff:g>)</string>
+-
++   <string name="screen_direction">screen direction</string>
+    <!-- New strings needed for App Info 2 -->
+    <!-- Preference label for app default launch settings [CHAR LIMIT=35]-->
+    <string name="launch_by_default">Open by default</string>
+diff --git a/packages/apps/Settings/res/xml/display_settings.xml b/packages/apps/Settings/res/xml/display_settings.xml
+index 3e08bd6..cbca255 100644
+--- a/packages/apps/Settings/res/xml/display_settings.xml
++++ b/packages/apps/Settings/res/xml/display_settings.xml
+@@ -112,6 +112,13 @@
+                 settings:keywords="@string/keywords_display_cast_screen"
+                 android:fragment="com.android.settings.wfd.WifiDisplaySettings" />
+ 
++	<ListPreference
++                android:key="screen_direction"
++                android:title="@string/screen_direction"
++                android:persistent="false"
++                android:entries="@array/rotate_setting_entry"
++                android:entryValues="@array/rotate_setting_value" />
++
+         <DropDownPreference
+                 android:key="vr_display_pref"
+                 android:summary="%s"
+diff --git a/packages/apps/Settings/src/com/android/settings/DisplaySettings.java b/packages/apps/Settings/src/com/android/settings/DisplaySettings.java
+old mode 100644
+new mode 100755
+index f13aedf..0344036
+--- a/packages/apps/Settings/src/com/android/settings/DisplaySettings.java
++++ b/packages/apps/Settings/src/com/android/settings/DisplaySettings.java
+@@ -88,6 +88,7 @@ public class DisplaySettings extends SettingsPreferenceFragment implements
+     private static final String KEY_TAP_TO_WAKE = "tap_to_wake";
+     private static final String KEY_AUTO_BRIGHTNESS = "auto_brightness";
+     private static final String KEY_AUTO_ROTATE = "auto_rotate";
++	private static final String KEY_SCREEN_DIRECTION = "screen_direction";
+     private static final String KEY_NIGHT_DISPLAY = "night_display";
+     private static final String KEY_NIGHT_MODE = "night_mode";
+     private static final String KEY_CAMERA_GESTURE = "camera_gesture";
+@@ -104,6 +105,7 @@ public class DisplaySettings extends SettingsPreferenceFragment implements
+     private SwitchPreference mTapToWakePreference;
+     private SwitchPreference mAutoBrightnessPreference;
+     private SwitchPreference mCameraGesturePreference;
++    private ListPreference mScreenRotatePrerence;
+ 
+     @Override
+     protected int getMetricsCategory() {
+@@ -207,7 +209,10 @@ public class DisplaySettings extends SettingsPreferenceFragment implements
+         } else {
+             removePreference(KEY_AUTO_ROTATE);
+         }
++		mScreenRotatePrerence = (ListPreference) findPreference(KEY_SCREEN_DIRECTION);
++        mScreenRotatePrerence.setOnPreferenceChangeListener(this);
+ 
++		
+         if (isVrDisplayModeAvailable(activity)) {
+             DropDownPreference vrDisplayPref =
+                     (DropDownPreference) findPreference(KEY_VR_DISPLAY_PREF);
+@@ -318,6 +323,39 @@ public class DisplaySettings extends SettingsPreferenceFragment implements
+         preference.setSummary(summary);
+     }
+ 
++    private void updateScreenDirectionPreference(int direction) {
++    	ListPreference preference = mScreenRotatePrerence;
++    	
++    	final CharSequence[] entries = preference.getEntries();
++        final CharSequence[] values = preference.getEntryValues();
++        if (entries == null || entries.length == 0) {
++        	Log.d(TAG, "no entry!!!");
++        	return;
++        }
++        int i;
++        for (i = 0; i < values.length; i++) {
++            int dir = Integer.parseInt(values[i].toString());
++            //Log.d(TAG, "dir:" + dir);
++            if (dir == direction){
++            	break;
++            }
++        }
++        Log.d(TAG, "i:" + i + ",entry size:" + values.length);
++        if (i < values.length){
++            if (i == 0){
++    	        Settings.System.putInt(getContentResolver(), Settings.System.USER_ROTATION, 0);
++            }else if (i == 1){
++            	Settings.System.putInt(getContentResolver(), Settings.System.USER_ROTATION, 1);
++            }else if (i == 2){
++            	Settings.System.putInt(getContentResolver(), Settings.System.USER_ROTATION, 2);
++            }else if (i == 3){
++            	Settings.System.putInt(getContentResolver(), Settings.System.USER_ROTATION, 3);
++            }
++        }
++		int d = Settings.System.getInt(getContentResolver(), Settings.System.USER_ROTATION, 0);
++		Log.d(TAG, "direction set to:" + d);
++    }
++
+     @Override
+     public void onResume() {
+         super.onResume();
+@@ -414,6 +452,16 @@ public class DisplaySettings extends SettingsPreferenceFragment implements
+                 Log.e(TAG, "could not persist screen timeout setting", e);
+             }
+         }
++        if (KEY_SCREEN_DIRECTION.equals(key)) {
++        	int value = Integer.parseInt((String) objValue);
++        	Log.d(TAG, "value:" + value);
++            try {
++                updateScreenDirectionPreference(value);
++            } catch (NumberFormatException e) {
++                Log.e(TAG, "could not persist screen direction setting", e);
++            }
++        }
++
+         if (preference == mAutoBrightnessPreference) {
+             boolean auto = (Boolean) objValue;
+             Settings.System.putInt(getContentResolver(), SCREEN_BRIGHTNESS_MODE,
